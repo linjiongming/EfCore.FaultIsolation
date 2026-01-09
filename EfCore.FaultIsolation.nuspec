@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>EfCore.FaultIsolation</id>
+    <version>1.0.0</version>
+    <title>EfCore.FaultIsolation</title>
+    <authors>linjiongming</authors>
+    <owners>linjiongming</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <projectUrl>https://github.com/linjiongming/EfCore.FaultIsolation</projectUrl>
+    <description>Entity Framework Core fault isolation library with automatic retry, fault isolation, and dead letter queue functionality.</description>
+    <releaseNotes>Initial release</releaseNotes>
+    <copyright>2026 linjiongming</copyright>
+    <tags>EntityFrameworkCore EFCore FaultIsolation Retry DeadLetterQueue</tags>
+  </metadata>
+  <files>
+    <file src="EfCore.FaultIsolation\bin\Release\net10.0\EfCore.FaultIsolation.dll" target="lib\net10.0" />
+    <file src="EfCore.FaultIsolation\bin\Release\net10.0\EfCore.FaultIsolation.pdb" target="lib\net10.0" />
+    <file src="EfCore.FaultIsolation\bin\Release\net10.0\EfCore.FaultIsolation.xml" target="lib\net10.0" />
+    <file src="README.md" target="docs" />
+  </files>
+</package>
