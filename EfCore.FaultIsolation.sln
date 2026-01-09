@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.1.11312.151 d18.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EfCore.FaultIsolation", "EfCore.FaultIsolation\EfCore.FaultIsolation.csproj", "{FD323590-8090-12C9-4888-B8A49295A494}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决方案项", "{8B3701BE-90ED-4B30-AAC9-B032F811A43D}"
+	ProjectSection(SolutionItems) = preProject
+		EfCore.FaultIsolation.nuspec = EfCore.FaultIsolation.nuspec
+		LICENSE = LICENSE
+		README.md = README.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FD323590-8090-12C9-4888-B8A49295A494}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD323590-8090-12C9-4888-B8A49295A494}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD323590-8090-12C9-4888-B8A49295A494}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD323590-8090-12C9-4888-B8A49295A494}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9BF31909-DEBD-43B5-A571-51A3786E1737}
+	EndGlobalSection
+EndGlobal
