@@ -10,6 +10,10 @@ using EfCore.FaultIsolation.Models;
 
 namespace EfCore.FaultIsolation.Stores;
 
+/// <summary>
+/// LiteDB 实现的故障隔离存储
+/// </summary>
+/// <typeparam name="TDbContext">Entity Framework Core 数据库上下文类型</typeparam>
 public class LiteDbStore<TDbContext> : IFaultIsolationStore<TDbContext> where TDbContext : DbContext
 {
     private readonly LiteDatabase _database;
@@ -33,6 +37,10 @@ public class LiteDbStore<TDbContext> : IFaultIsolationStore<TDbContext> where TD
         }
     }
     
+    /// <summary>
+    /// 初始化 LiteDbStore 实例
+    /// </summary>
+    /// <param name="connectionString">LiteDB 连接字符串，默认为 null 时使用自动生成的连接字符串</param>
     public LiteDbStore(string? connectionString = null)
     {
         // Create fault directory if it doesn't exist
@@ -61,6 +69,7 @@ public class LiteDbStore<TDbContext> : IFaultIsolationStore<TDbContext> where TD
         return _database.GetCollection<DeadLetter<TEntity>>(collectionName);
     }
     
+    /// <inheritdoc />
     public ValueTask SaveFaultAsync<TEntity>(FaultModel<TEntity> fault, CancellationToken cancellationToken = default) where TEntity : class
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -69,6 +78,7 @@ public class LiteDbStore<TDbContext> : IFaultIsolationStore<TDbContext> where TD
         return ValueTask.CompletedTask;
     }
     
+    /// <inheritdoc />
     public ValueTask<IEnumerable<FaultModel<TEntity>>> GetPendingFaultsAsync<TEntity>(int batchSize = 100, CancellationToken cancellationToken = default) where TEntity : class
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -82,6 +92,7 @@ public class LiteDbStore<TDbContext> : IFaultIsolationStore<TDbContext> where TD
         return ValueTask.FromResult((IEnumerable<FaultModel<TEntity>>)faults);
     }
     
+    /// <inheritdoc />
     public ValueTask DeleteFaultAsync<TEntity>(Guid id, CancellationToken cancellationToken = default) where TEntity : class
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -90,6 +101,7 @@ public class LiteDbStore<TDbContext> : IFaultIsolationStore<TDbContext> where TD
         return ValueTask.CompletedTask;
     }
     
+    /// <inheritdoc />
     public ValueTask UpdateFaultAsync<TEntity>(FaultModel<TEntity> fault, CancellationToken cancellationToken = default) where TEntity : class
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -98,6 +110,7 @@ public class LiteDbStore<TDbContext> : IFaultIsolationStore<TDbContext> where TD
         return ValueTask.CompletedTask;
     }
     
+    /// <inheritdoc />
     public ValueTask SaveDeadLetterAsync<TEntity>(DeadLetter<TEntity> deadLetter, CancellationToken cancellationToken = default) where TEntity : class
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -106,6 +119,7 @@ public class LiteDbStore<TDbContext> : IFaultIsolationStore<TDbContext> where TD
         return ValueTask.CompletedTask;
     }
     
+    /// <inheritdoc />
     public ValueTask<int> GetPendingFaultCountAsync<TEntity>(CancellationToken cancellationToken = default) where TEntity : class
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -114,6 +128,7 @@ public class LiteDbStore<TDbContext> : IFaultIsolationStore<TDbContext> where TD
         return ValueTask.FromResult(count);
     }
     
+    /// <inheritdoc />
     public ValueTask<IEnumerable<string>> GetAllFaultCollectionNamesAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -124,6 +139,7 @@ public class LiteDbStore<TDbContext> : IFaultIsolationStore<TDbContext> where TD
         return ValueTask.FromResult((IEnumerable<string>)collectionNames);
     }
     
+    /// <inheritdoc />
     public ValueTask<IEnumerable<object>> GetPendingFaultsByCollectionNameAsync(string collectionName, int batchSize = 100, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

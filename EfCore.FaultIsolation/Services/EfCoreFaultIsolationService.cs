@@ -15,6 +15,10 @@ using Microsoft.Extensions.Logging;
 
 namespace EfCore.FaultIsolation.Services;
 
+/// <summary>
+/// EF Core 故障隔离服务，用于处理实体操作的故障隔离和自动重试
+/// </summary>
+/// <typeparam name="TDbContext">数据库上下文类型</typeparam>
 public class EfCoreFaultIsolationService<TDbContext>(
     IServiceProvider serviceProvider,
     IRetryService retryService,
@@ -316,6 +320,12 @@ public class EfCoreFaultIsolationService<TDbContext>(
 
 
 
+    /// <summary>
+    /// 批量保存实体，如果遇到错误则进行故障隔离和重试
+    /// </summary>
+    /// <typeparam name="TEntity">实体类型</typeparam>
+    /// <param name="entities">要保存的实体集合</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task SaveBatchAsync<TEntity>(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
         where TEntity : class
     {
@@ -512,6 +522,12 @@ public class EfCoreFaultIsolationService<TDbContext>(
         }
     }
 
+    /// <summary>
+    /// 保存单个实体，如果遇到错误则进行故障隔离和重试
+    /// </summary>
+    /// <typeparam name="TEntity">实体类型</typeparam>
+    /// <param name="entity">要保存的实体</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task SaveSingleAsync<TEntity>(TEntity entity, CancellationToken cancellationToken = default)
         where TEntity : class
     {
@@ -631,6 +647,11 @@ public class EfCoreFaultIsolationService<TDbContext>(
 
 
 
+    /// <summary>
+    /// 配置定期重复重试任务
+    /// </summary>
+    /// <typeparam name="TEntity">实体类型</typeparam>
+    /// <param name="batchSize">批量大小</param>
     public void ConfigureRecurringRetry<TEntity>(int batchSize = 100) where TEntity : class
     {
         schedulerService.ScheduleBatchRetry<TEntity, TDbContext>(batchSize);

@@ -10,8 +10,15 @@ using Microsoft.Extensions.Logging;
 
 namespace EfCore.FaultIsolation.Services;
 
+/// <summary>
+/// Hangfire调度服务，用于管理重试任务的调度
+/// </summary>
 public class HangfireSchedulerService(IServiceProvider serviceProvider, ILogger<HangfireSchedulerService> logger)
 {
+    /// <summary>
+    /// 配置Hangfire使用SQLite存储
+    /// </summary>
+    /// <param name="sqliteConnectionString">SQLite连接字符串</param>
     public void ConfigureHangfire(string sqliteConnectionString = "hangfire.db")
     {
         // 配置Hangfire使用服务提供程序激活器
@@ -20,6 +27,15 @@ public class HangfireSchedulerService(IServiceProvider serviceProvider, ILogger<
             .UseSQLiteStorage(sqliteConnectionString);
     }
     
+    /// <summary>
+    /// 调度单个实体的重试任务
+    /// </summary>
+    /// <typeparam name="TEntity">实体类型</typeparam>
+    /// <typeparam name="TDbContext">数据库上下文类型</typeparam>
+    /// <param name="faultId">故障记录ID</param>
+    /// <param name="retryCount">当前重试次数</param>
+    /// <param name="delay">延迟时间</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public void ScheduleRetry<TEntity, TDbContext>(Guid faultId, int retryCount, TimeSpan delay, CancellationToken cancellationToken = default) 
         where TEntity : class 
         where TDbContext : DbContext
@@ -42,6 +58,13 @@ public class HangfireSchedulerService(IServiceProvider serviceProvider, ILogger<
         }
     }
     
+    /// <summary>
+    /// 调度批量实体的重试任务
+    /// </summary>
+    /// <typeparam name="TEntity">实体类型</typeparam>
+    /// <typeparam name="TDbContext">数据库上下文类型</typeparam>
+    /// <param name="batchSize">批量大小</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public void ScheduleBatchRetry<TEntity, TDbContext>(int batchSize = 100, CancellationToken cancellationToken = default) 
         where TEntity : class 
         where TDbContext : DbContext
@@ -63,6 +86,13 @@ public class HangfireSchedulerService(IServiceProvider serviceProvider, ILogger<
         }
     }
     
+    /// <summary>
+    /// 非泛型方法：调度批量实体的重试任务
+    /// </summary>
+    /// <param name="entityType">实体类型</param>
+    /// <param name="dbContextType">数据库上下文类型</param>
+    /// <param name="batchSize">批量大小</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public void ScheduleBatchRetry(Type entityType, Type dbContextType, int batchSize = 100, CancellationToken cancellationToken = default)
     {
         try
@@ -85,6 +115,13 @@ public class HangfireSchedulerService(IServiceProvider serviceProvider, ILogger<
         }
     }
     
+    /// <summary>
+    /// 立即触发批量实体的重试任务
+    /// </summary>
+    /// <typeparam name="TEntity">实体类型</typeparam>
+    /// <typeparam name="TDbContext">数据库上下文类型</typeparam>
+    /// <param name="batchSize">批量大小</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public void TriggerImmediateBatchRetry<TEntity, TDbContext>(int batchSize = 100, CancellationToken cancellationToken = default) 
         where TEntity : class 
         where TDbContext : DbContext
@@ -106,6 +143,13 @@ public class HangfireSchedulerService(IServiceProvider serviceProvider, ILogger<
         }
     }
     
+    /// <summary>
+    /// 非泛型方法：立即触发批量实体的重试任务
+    /// </summary>
+    /// <param name="entityType">实体类型</param>
+    /// <param name="dbContextType">数据库上下文类型</param>
+    /// <param name="batchSize">批量大小</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public void TriggerImmediateBatchRetry(Type entityType, Type dbContextType, int batchSize = 100, CancellationToken cancellationToken = default)
     {
         try

@@ -13,6 +13,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace EfCore.FaultIsolation.Services;
 
+/// <summary>
+/// 重试服务实现类，用于处理实体操作的重试逻辑和异常分类
+/// </summary>
 public class RetryService : IRetryService
 {
     private int _maxRetries = 5;
@@ -20,6 +23,10 @@ public class RetryService : IRetryService
     private readonly IServiceProvider _serviceProvider;
     private readonly ConcurrentBag<Type> _fatalExceptionTypes = new ConcurrentBag<Type>();
     
+    /// <summary>
+    /// 初始化 RetryService 实例，使用默认的初始重试延迟时间（1秒）
+    /// </summary>
+    /// <param name="serviceProvider">服务提供程序实例</param>
     public RetryService(IServiceProvider serviceProvider)
     {
         _initialRetryDelay = TimeSpan.FromSeconds(1);
@@ -31,6 +38,11 @@ public class RetryService : IRetryService
         _fatalExceptionTypes.Add(typeof(DbUpdateException));
     }
     
+    /// <summary>
+    /// 初始化 RetryService 实例，使用自定义的初始重试延迟时间
+    /// </summary>
+    /// <param name="initialRetryDelay">初始重试延迟时间</param>
+    /// <param name="serviceProvider">服务提供程序实例</param>
     public RetryService(TimeSpan initialRetryDelay, IServiceProvider serviceProvider)
     {
         _initialRetryDelay = initialRetryDelay;
@@ -61,6 +73,13 @@ public class RetryService : IRetryService
         return ex.InnerException != null && HasMatchingException(ex.InnerException, predicate);
     }
     
+    /// <summary>
+    /// 批量重试实体操作
+    /// </summary>
+    /// <typeparam name="TEntity">实体类型</typeparam>
+    /// <typeparam name="TDbContext">数据库上下文类型</typeparam>
+    /// <param name="entities">要重试的实体集合</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task RetryBatchAsync<TEntity, TDbContext>(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default) 
         where TEntity : class 
         where TDbContext : DbContext
@@ -72,6 +91,13 @@ public class RetryService : IRetryService
         await dbContext.SaveChangesAsync(cancellationToken);
     }
     
+    /// <summary>
+    /// 单个实体操作重试
+    /// </summary>
+    /// <typeparam name="TEntity">实体类型</typeparam>
+    /// <typeparam name="TDbContext">数据库上下文类型</typeparam>
+    /// <param name="entity">要重试的实体</param>
+    /// <param name="cancellationToken">取消令牌</param>
     public async Task RetrySingleAsync<TEntity, TDbContext>(TEntity entity, CancellationToken cancellationToken = default) 
         where TEntity : class 
         where TDbContext : DbContext
@@ -83,6 +109,11 @@ public class RetryService : IRetryService
         await dbContext.SaveChangesAsync(cancellationToken);
     }
     
+    /// <summary>
+    /// 检查异常是否是可重试的异常
+    /// </summary>
+    /// <param name="ex">要检查的异常</param>
+    /// <returns>如果异常是可重试的，则返回true；否则返回false</returns>
     public ValueTask<bool> IsRetryableException(Exception ex)
     {
         if (ex is null)
@@ -133,6 +164,11 @@ public class RetryService : IRetryService
         return ValueTask.FromResult(isRetryable);
     }
     
+    /// <summary>
+    /// 检查异常是否是数据错误异常
+    /// </summary>
+    /// <param name="ex">要检查的异常</param>
+    /// <returns>如果异常是数据错误异常，则返回true；否则返回false</returns>
     public ValueTask<bool> IsDataErrorException(Exception ex)
     {
         if (ex is null)
@@ -194,6 +230,11 @@ public class RetryService : IRetryService
         return ValueTask.FromResult(isDataError);
     }
     
+    /// <summary>
+    /// 计算指数退避延迟时间
+    /// </summary>
+    /// <param name="retryCount">重试次数</param>
+    /// <returns>计算后的退避延迟时间</returns>
     public TimeSpan CalculateExponentialBackoff(int retryCount)
     {
         var maxDelay = TimeSpan.FromMinutes(30);
@@ -205,6 +246,11 @@ public class RetryService : IRetryService
         return TimeSpan.FromTicks(Math.Min((TimeSpan.FromSeconds(delay) + TimeSpan.FromMilliseconds(jitter)).Ticks, maxDelay.Ticks));
     }
     
+    /// <summary>
+    /// 检查异常是否是致命异常
+    /// </summary>
+    /// <param name="ex">要检查的异常</param>
+    /// <returns>如果异常是致命异常，则返回true；否则返回false</returns>
     public ValueTask<bool> IsFatalException(Exception ex)
     {
         if (ex is null)
@@ -226,6 +272,12 @@ public class RetryService : IRetryService
         return ValueTask.FromResult(isFatal);
     }
     
+    /// <summary>
+    /// 配置致命异常类型集合
+    /// </summary>
+    /// <param name="fatalExceptionTypes">致命异常类型集合</param>
+    /// <exception cref="ArgumentNullException">当fatalExceptionTypes为null时抛出</exception>
+    /// <exception cref="ArgumentException">当任何类型不是Exception的子类时抛出</exception>
     public void ConfigureFatalExceptions(IEnumerable<Type> fatalExceptionTypes)
     {
         if (fatalExceptionTypes == null)
@@ -248,6 +300,12 @@ public class RetryService : IRetryService
         }
     }
     
+    /// <summary>
+    /// 添加单个致命异常类型
+    /// </summary>
+    /// <param name="exceptionType">要添加的异常类型</param>
+    /// <exception cref="ArgumentNullException">当exceptionType为null时抛出</exception>
+    /// <exception cref="ArgumentException">当类型不是Exception的子类时抛出</exception>
     public void AddFatalExceptionType(Type exceptionType)
     {
         if (exceptionType == null)
@@ -263,6 +321,11 @@ public class RetryService : IRetryService
         }
     }
     
+    /// <summary>
+    /// 移除单个致命异常类型
+    /// </summary>
+    /// <param name="exceptionType">要移除的异常类型</param>
+    /// <exception cref="ArgumentNullException">当exceptionType为null时抛出</exception>
     public void RemoveFatalExceptionType(Type exceptionType)
     {
         if (exceptionType == null)
@@ -287,11 +350,20 @@ public class RetryService : IRetryService
         }
     }
     
+    /// <summary>
+    /// 获取最大重试次数
+    /// </summary>
+    /// <returns>当前配置的最大重试次数</returns>
     public int GetMaxRetries()
     {
         return _maxRetries;
     }
     
+    /// <summary>
+    /// 配置最大重试次数
+    /// </summary>
+    /// <param name="maxRetries">要设置的最大重试次数</param>
+    /// <exception cref="ArgumentOutOfRangeException">当maxRetries为负数时抛出</exception>
     public void ConfigureMaxRetries(int maxRetries)
     {
         if (maxRetries < 0)

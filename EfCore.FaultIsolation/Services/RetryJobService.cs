@@ -9,6 +9,11 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace EfCore.FaultIsolation.Services;
 
+/// <summary>
+/// 重试作业服务类，用于处理单个和批量故障项的重试逻辑
+/// </summary>
+/// <param name="retryService">重试服务实例</param>
+/// <param name="serviceProvider">服务提供程序实例</param>
 public class RetryJobService(
     IRetryService retryService,
     IServiceProvider serviceProvider)
@@ -18,6 +23,14 @@ public class RetryJobService(
         return serviceProvider.GetRequiredService<IFaultIsolationStore<TDbContext>>();
     }
     
+    /// <summary>
+    /// 重试单个故障项
+    /// </summary>
+    /// <typeparam name="TEntity">实体类型</typeparam>
+    /// <typeparam name="TDbContext">数据库上下文类型</typeparam>
+    /// <param name="faultId">故障项唯一标识符</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>异步操作结果</returns>
     public async Task RetryJobAsync<TEntity, TDbContext>(Guid faultId, CancellationToken cancellationToken = default) 
         where TEntity : class 
         where TDbContext : DbContext
@@ -72,6 +85,14 @@ public class RetryJobService(
         }
     }
     
+    /// <summary>
+    /// 批量重试故障项
+    /// </summary>
+    /// <typeparam name="TEntity">实体类型</typeparam>
+    /// <typeparam name="TDbContext">数据库上下文类型</typeparam>
+    /// <param name="batchSize">批量大小，默认值为100</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>异步操作结果</returns>
     public async Task BatchRetryJobAsync<TEntity, TDbContext>(int batchSize = 100, CancellationToken cancellationToken = default) 
         where TEntity : class 
         where TDbContext : DbContext
@@ -140,6 +161,14 @@ public class RetryJobService(
         }
     }
     
+    /// <summary>
+    /// 基于类型的批量重试方法（非泛型）
+    /// </summary>
+    /// <param name="entityType">实体类型</param>
+    /// <param name="dbContextType">数据库上下文类型</param>
+    /// <param name="batchSize">批量大小，默认值为100</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>异步操作结果</returns>
     public async Task BatchRetryJobAsync(Type entityType, Type dbContextType, int batchSize = 100, CancellationToken cancellationToken = default)
     {
         // 获取实体类型和DbContext类型的泛型BatchRetryJobAsync方法
