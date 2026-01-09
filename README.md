@@ -49,8 +49,6 @@ await faultIsolationService.SaveBatchAsync<Product, AppDbContext>(entities);
 var product = new Product { Name = "Product 3" };
 await faultIsolationService.SaveSingleAsync<Product, AppDbContext>(product);
 
-// 注意：健康检查监控现在是自动配置的，无需显式调用
-
 // 手动触发批量重试（可选，仅在需要时使用）
 faultIsolationService.ConfigureRecurringRetry<Product, AppDbContext>();
 ```
