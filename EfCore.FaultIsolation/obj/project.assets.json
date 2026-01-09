@@ -1250,11 +1250,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\Users\\se-admin\\Desktop\\EfCore.FaultIsolation\\EfCore.FaultIsolation\\EfCore.FaultIsolation.csproj",
+      "projectUniqueName": "D:\\Users\\se-admin\\source\\repos\\EfCore.FaultIsolation\\EfCore.FaultIsolation\\EfCore.FaultIsolation.csproj",
       "projectName": "EfCore.FaultIsolation",
-      "projectPath": "D:\\Users\\se-admin\\Desktop\\EfCore.FaultIsolation\\EfCore.FaultIsolation\\EfCore.FaultIsolation.csproj",
+      "projectPath": "D:\\Users\\se-admin\\source\\repos\\EfCore.FaultIsolation\\EfCore.FaultIsolation\\EfCore.FaultIsolation.csproj",
       "packagesPath": "D:\\Users\\se-admin\\.nuget\\packages\\",
-      "outputPath": "D:\\Users\\se-admin\\Desktop\\EfCore.FaultIsolation\\EfCore.FaultIsolation\\obj\\",
+      "outputPath": "D:\\Users\\se-admin\\source\\repos\\EfCore.FaultIsolation\\EfCore.FaultIsolation\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "D:\\Program Files\\DevExpress 22.1\\Components\\Offline Packages",

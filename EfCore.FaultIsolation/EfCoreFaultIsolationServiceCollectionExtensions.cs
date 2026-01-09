@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Microsoft.EntityFrameworkCore;
 using EfCore.FaultIsolation.HealthChecks;
 using EfCore.FaultIsolation.Services;
@@ -23,12 +24,12 @@ public static class EfCoreFaultIsolationServiceCollectionExtensions
             new LiteDbStore<TDbContext>(options.LiteDbConnectionString));
 
         // 注册健康检查服务
-        services.AddScoped<IDatabaseHealthChecker, EfCoreDatabaseHealthChecker<TDbContext>>();
+        services.AddScoped<IDatabaseHealthChecker<TDbContext>, EfCoreDatabaseHealthChecker<TDbContext>>();
 
         // 注册核心服务
         services.AddScoped<IRetryService>((sp) => new RetryService(options.InitialRetryDelay, sp));
         services.AddScoped<HangfireSchedulerService>();
-        services.AddScoped<EfCoreFaultIsolationService>();
+        services.AddScoped<EfCoreFaultIsolationService<TDbContext>>();
         services.AddScoped<RetryJobService>();
 
         // 配置Hangfire服务但不添加Hangfire服务器
@@ -38,8 +39,11 @@ public static class EfCoreFaultIsolationServiceCollectionExtensions
             configuration.UseStorage(new Hangfire.Storage.SQLite.SQLiteStorage(options.HangfireConnectionString));
         });
 
-        // 添加Hangfire服务器
-        services.AddHangfireServer();
+        // 检查是否已经注册了HangfireServer，如果没有则添加
+        if (!services.Any(descriptor => descriptor.ImplementationType?.FullName == "Hangfire.HangfireServer"))
+        {
+            services.AddHangfireServer();
+        }
 
         return services;
     }
@@ -48,10 +52,20 @@ public static class EfCoreFaultIsolationServiceCollectionExtensions
 public class FaultIsolationOptions
 {
     public string? LiteDbConnectionString { get; set; }
-    public string HangfireConnectionString { get; set; } = "hangfire.db";
+    public string HangfireConnectionString { get; set; }
     public int MaxRetries { get; set; } = 5;
     public TimeSpan InitialRetryDelay { get; set; } = TimeSpan.FromSeconds(1);
     public int HealthCheckIntervalSeconds { get; set; } = 30;
+    
+    public FaultIsolationOptions()
+    {
+        // Create fault directory if it doesn't exist
+        string faultDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fault");
+        Directory.CreateDirectory(faultDirectory);
+        
+        // Set default Hangfire connection string to use fault directory
+        HangfireConnectionString = Path.Combine(faultDirectory, "hangfire.db");
+    }
 
     internal System.Collections.Generic.HashSet<Type> IsolatedEntities { get; } = new();
 

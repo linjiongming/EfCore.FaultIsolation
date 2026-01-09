@@ -16,8 +16,8 @@ public static class EfCoreFaultIsolationDbContextExtensions
         CancellationToken cancellationToken = default
     ) where TEntity : class where TDbContext : DbContext
     {
-        var faultIsolationService = dbContext.GetService<EfCoreFaultIsolationService>();
-        await faultIsolationService.SaveSingleAsync<TEntity, TDbContext>(entity, cancellationToken);
+        var faultIsolationService = dbContext.GetService<EfCoreFaultIsolationService<TDbContext>>();
+        await faultIsolationService.SaveSingleAsync<TEntity>(entity, cancellationToken);
     }
     
     public static async Task SaveRangeWithFaultIsolationAsync<TEntity, TDbContext>(
@@ -26,7 +26,7 @@ public static class EfCoreFaultIsolationDbContextExtensions
         CancellationToken cancellationToken = default
     ) where TEntity : class where TDbContext : DbContext
     {
-        var faultIsolationService = dbContext.GetService<EfCoreFaultIsolationService>();
-        await faultIsolationService.SaveBatchAsync<TEntity, TDbContext>(entities, cancellationToken);
+        var faultIsolationService = dbContext.GetService<EfCoreFaultIsolationService<TDbContext>>();
+        await faultIsolationService.SaveBatchAsync<TEntity>(entities, cancellationToken);
     }
 }

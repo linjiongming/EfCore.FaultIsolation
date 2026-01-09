@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,11 +35,15 @@ public class LiteDbStore<TDbContext> : IFaultIsolationStore<TDbContext> where TD
     
     public LiteDbStore(string? connectionString = null)
     {
+        // Create fault directory if it doesn't exist
+        string faultDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fault");
+        Directory.CreateDirectory(faultDirectory);
+        
         // Only generate default connection string if null
         if (connectionString == null)
         {
             var dbName = GetDbName();
-            connectionString = $"{dbName}-fault.db";
+            connectionString = Path.Combine(faultDirectory, $"{dbName}-fault.db");
         }
         
         _database = new LiteDatabase(connectionString);

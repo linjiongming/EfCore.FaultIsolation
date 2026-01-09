@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Hangfire;
+using Hangfire.Common;
 using Hangfire.Storage.SQLite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,17 +26,14 @@ public class HangfireSchedulerService(IServiceProvider serviceProvider, ILogger<
     {
         try
         {
-            // 直接创建RetryJobService实例，避免Hangfire的动态类型创建问题
-            using var scope = serviceProvider.CreateScope();
-            var retryJobService = scope.ServiceProvider.GetRequiredService<RetryJobService>();
+            // 使用Hangfire调度重试任务
+            var jobId = BackgroundJob.Schedule<RetryJobService>(
+                job => job.RetryJobAsync<TEntity, TDbContext>(faultId, cancellationToken),
+                delay);
             
-            // 立即执行重试，而不是通过Hangfire调度
-            // 这避免了Hangfire的序列化和激活问题
-            Task.Run(async () => 
-            {
-                await Task.Delay(delay);
-                await retryJobService.RetryJobAsync<TEntity, TDbContext>(faultId, cancellationToken);
-            });
+            // 添加英文描述
+            JobStorage.Current.GetConnection().SetJobParameter(jobId, "Description", 
+                $"Retry job for {typeof(TEntity).Name} entity (ID: {faultId}), retry attempt #{retryCount+1}");
         }
         catch (Exception ex)
         {
@@ -50,15 +48,13 @@ public class HangfireSchedulerService(IServiceProvider serviceProvider, ILogger<
     {
         try
         {
-            // 直接创建RetryJobService实例，避免Hangfire的动态类型创建问题
-            using var scope = serviceProvider.CreateScope();
-            var retryJobService = scope.ServiceProvider.GetRequiredService<RetryJobService>();
+            // 使用Hangfire调度批量重试任务
+            var jobId = BackgroundJob.Enqueue<RetryJobService>(
+                job => job.BatchRetryJobAsync<TEntity, TDbContext>(batchSize, cancellationToken));
             
-            // 立即执行批量重试，而不是通过Hangfire调度
-            Task.Run(async () => 
-            {
-                await retryJobService.BatchRetryJobAsync<TEntity, TDbContext>(batchSize, cancellationToken);
-            });
+            // 添加英文描述
+            JobStorage.Current.GetConnection().SetJobParameter(jobId, "Description", 
+                $"Batch retry job for {typeof(TEntity).Name} entities, batch size: {batchSize}");
         }
         catch (Exception ex)
         {
@@ -71,15 +67,16 @@ public class HangfireSchedulerService(IServiceProvider serviceProvider, ILogger<
     {
         try
         {
-            // 直接创建RetryJobService实例，避免Hangfire的动态类型创建问题
-            using var scope = serviceProvider.CreateScope();
-            var retryJobService = scope.ServiceProvider.GetRequiredService<RetryJobService>();
+            // 使用Hangfire调度非泛型批量重试任务
+            // 使用反射创建泛型方法调用
+            var method = typeof(HangfireSchedulerService)
+                .GetMethod(nameof(ScheduleBatchRetry), new Type[] { typeof(int), typeof(CancellationToken) })
+                ?.MakeGenericMethod(entityType, dbContextType);
             
-            // 立即执行批量重试，而不是通过Hangfire调度
-            Task.Run(async () => 
+            if (method != null)
             {
-                await retryJobService.BatchRetryJobAsync(entityType, dbContextType, batchSize, cancellationToken);
-            });
+                method.Invoke(this, new object[] { batchSize, cancellationToken });
+            }
         }
         catch (Exception ex)
         {
@@ -94,15 +91,34 @@ public class HangfireSchedulerService(IServiceProvider serviceProvider, ILogger<
     {
         try
         {
-            // 直接创建RetryJobService实例，避免Hangfire的动态类型创建问题
-            using var scope = serviceProvider.CreateScope();
-            var retryJobService = scope.ServiceProvider.GetRequiredService<RetryJobService>();
+            // 使用Hangfire立即执行批量重试任务
+            var jobId = BackgroundJob.Enqueue<RetryJobService>(
+                job => job.BatchRetryJobAsync<TEntity, TDbContext>(batchSize, cancellationToken));
             
-            // 立即执行批量重试，而不是通过Hangfire调度
-            Task.Run(async () => 
+            // 添加英文描述
+            JobStorage.Current.GetConnection().SetJobParameter(jobId, "Description", 
+                $"Immediate batch retry job for {typeof(TEntity).Name} entities, triggered by database connection recovery");
+        }
+        catch (Exception ex)
+        {
+            // 记录异常但不影响主流程
+            logger.LogError(ex, "Immediate batch retry error: {Message}", ex.Message);
+        }
+    }
+    
+    public void TriggerImmediateBatchRetry(Type entityType, Type dbContextType, int batchSize = 100, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // 使用反射获取泛型TriggerImmediateBatchRetry方法
+            var method = typeof(HangfireSchedulerService)
+                .GetMethod(nameof(TriggerImmediateBatchRetry), new Type[] { typeof(int), typeof(CancellationToken) })
+                ?.MakeGenericMethod(entityType, dbContextType);
+            
+            if (method != null)
             {
-                await retryJobService.BatchRetryJobAsync<TEntity, TDbContext>(batchSize, cancellationToken);
-            });
+                method.Invoke(this, new object[] { batchSize, cancellationToken });
+            }
         }
         catch (Exception ex)
         {

@@ -16,7 +16,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyDescriptionAttribute(("Entity Framework Core fault isolation library with automatic retry, fault isolati" +
     "on, and dead letter queue functionality."))]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+dbd996686803c8ded03be2c783a01ac4287f0f86")]
 [assembly: System.Reflection.AssemblyProductAttribute("EfCore.FaultIsolation")]
 [assembly: System.Reflection.AssemblyTitleAttribute("EfCore.FaultIsolation")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

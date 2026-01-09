@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace EfCore.FaultIsolation.HealthChecks;
 
-public class EfCoreDatabaseHealthChecker<TDbContext> : IDatabaseHealthChecker where TDbContext : DbContext
+public class EfCoreDatabaseHealthChecker<TDbContext> : IDatabaseHealthChecker<TDbContext> where TDbContext : DbContext
 {
     private readonly TDbContext _dbContext;
     private readonly ILogger<EfCoreDatabaseHealthChecker<TDbContext>> _logger;
@@ -19,34 +19,14 @@ public class EfCoreDatabaseHealthChecker<TDbContext> : IDatabaseHealthChecker wh
     {
         _dbContext = dbContext;
         _logger = logger;
-        
-        // 添加对数据库连接状态变化事件的监听
-        try
-        {
-            // 确保连接已创建
-            if (_dbContext.Database.GetDbConnection().State == System.Data.ConnectionState.Closed)
-            {
-                _dbContext.Database.GetDbConnection().Open();
-                _dbContext.Database.GetDbConnection().Close();
-            }
-            
-            // 订阅连接状态变化事件
-            _dbContext.Database.GetDbConnection().StateChange += OnConnectionStateChanged;
-        }
-        catch (Exception ex)
-        {
-            // 记录异常但不影响主流程
-            _logger.LogError(ex, "Failed to subscribe to connection state change event: {Message}", ex.Message);
-        }
     }
     
     public async Task<bool> IsHealthyAsync()
     {
         try
         {
-            await _dbContext.Database.OpenConnectionAsync();
-            await _dbContext.Database.CloseConnectionAsync();
-            return true;
+            // 使用EF Core提供的CanConnectAsync方法，这是一个轻量级的连接检查
+            return await _dbContext.Database.CanConnectAsync();
         }
         catch
         {
@@ -87,13 +67,5 @@ public class EfCoreDatabaseHealthChecker<TDbContext> : IDatabaseHealthChecker wh
         _lastHealthStatus = isHealthy;
     }
     
-    private void OnConnectionStateChanged(object sender, System.Data.StateChangeEventArgs e)
-    {
-        // 当连接从关闭状态变为打开状态时，触发DatabaseConnected事件
-        if (e.CurrentState == System.Data.ConnectionState.Open && e.OriginalState == System.Data.ConnectionState.Closed)
-        {
-            _logger.LogInformation("Database connection recovered, triggering immediate retry");
-            DatabaseConnected?.Invoke(this, EventArgs.Empty);
-        }
-    }
+
 }

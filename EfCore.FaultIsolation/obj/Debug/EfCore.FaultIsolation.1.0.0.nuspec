@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>EfCore.FaultIsolation</id>
+    <version>1.0.0</version>
+    <authors>se-admin</authors>
+    <description>Entity Framework Core fault isolation library with automatic retry, fault isolation, and dead letter queue functionality.</description>
+    <copyright>2026 se-admin</copyright>
+    <tags>EntityFrameworkCore,EFCore,FaultIsolation,Retry,DeadLetterQueue</tags>
+    <repository type="git" url="https://github.com/se-admin/EfCore.FaultIsolation" commit="dbd996686803c8ded03be2c783a01ac4287f0f86" />
+    <dependencies>
+      <group targetFramework="net10.0">
+        <dependency id="Hangfire.AspNetCore" version="1.8.22" exclude="Build,Analyzers" />
+        <dependency id="Hangfire.Core" version="1.8.22" exclude="Build,Analyzers" />
+        <dependency id="Hangfire.Storage.SQLite" version="0.4.2" exclude="Build,Analyzers" />
+        <dependency id="LiteDB" version="5.0.21" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.EntityFrameworkCore" version="10.0.1" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.EntityFrameworkCore.Relational" version="10.0.1" exclude="Build,Analyzers" />
+        <dependency id="Newtonsoft.Json" version="13.0.4" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="D:\Users\se-admin\source\repos\EfCore.FaultIsolation\EfCore.FaultIsolation\bin\Debug\net10.0\EfCore.FaultIsolation.dll" target="lib\net10.0\EfCore.FaultIsolation.dll" />
+    <file src="D:\Users\se-admin\source\repos\EfCore.FaultIsolation\EfCore.FaultIsolation\bin\Debug\net10.0\EfCore.FaultIsolation.xml" target="lib\net10.0\EfCore.FaultIsolation.xml" />
+  </files>
+</package>

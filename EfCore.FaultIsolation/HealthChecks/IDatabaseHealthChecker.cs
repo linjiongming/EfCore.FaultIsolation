@@ -1,8 +1,10 @@
-using System;using System.Threading.Tasks;
+using System;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace EfCore.FaultIsolation.HealthChecks;
 
-public interface IDatabaseHealthChecker
+public interface IDatabaseHealthChecker<TDbContext> where TDbContext : DbContext
 {
     event EventHandler DatabaseConnected;
     
