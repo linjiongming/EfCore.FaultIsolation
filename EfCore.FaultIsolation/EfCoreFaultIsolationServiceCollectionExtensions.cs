@@ -18,7 +18,7 @@ public static class EfCoreFaultIsolationServiceCollectionExtensions
     /// <param name="services">服务集合</param>
     /// <param name="configureOptions">故障隔离选项配置委托</param>
     /// <returns>服务集合</returns>
-    public static IServiceCollection AddEfCoreFaultIsolation<TDbContext>(
+    public static IServiceCollection AddFaultIsolation<TDbContext>(
         this IServiceCollection services,
         Action<FaultIsolationOptions>? configureOptions = null
     ) where TDbContext : DbContext
@@ -34,13 +34,13 @@ public static class EfCoreFaultIsolationServiceCollectionExtensions
         services.AddScoped<IDatabaseHealthChecker<TDbContext>, EfCoreDatabaseHealthChecker<TDbContext>>();
 
         // 注册故障隔离拦截器
-        services.AddScoped<EfCoreFaultIsolationInterceptor>();
+        services.AddScoped<FaultIsolationInterceptor>();
 
         // 注册核心服务
         services.AddScoped<IRetryService>((sp) => new RetryService(sp, options.InitialRetryDelay));
         services.AddScoped<HangfireSchedulerService>();
         services.AddScoped<RetryJobService>();
-        services.AddHostedService<EfCoreFaultIsolationService<TDbContext>>();
+        services.AddHostedService<FaultIsolationService<TDbContext>>();
 
         // 配置Hangfire服务
         services.AddHangfire(configuration =>
@@ -64,7 +64,7 @@ public static class EfCoreFaultIsolationServiceCollectionExtensions
     )
     {
         // 获取故障隔离拦截器
-        var faultIsolationInterceptor = serviceProvider.GetRequiredService<EfCoreFaultIsolationInterceptor>();
+        var faultIsolationInterceptor = serviceProvider.GetRequiredService<FaultIsolationInterceptor>();
         optionsBuilder.AddInterceptors(faultIsolationInterceptor);
 
         return optionsBuilder;

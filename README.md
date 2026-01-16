@@ -24,7 +24,7 @@ dotnet add package EfCore.FaultIsolation
 在Startup.cs或Program.cs中配置服务：
 
 ```csharp
-builder.Services.AddEfCoreFaultIsolation<AppDbContext>();
+builder.Services.AddFaultIsolation<AppDbContext>();
 ```
 
 ### 3. 配置DbContext
@@ -35,7 +35,7 @@ builder.Services.AddEfCoreFaultIsolation<AppDbContext>();
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer("connection-string");
-    options.AddInterceptors(new EfCoreFaultIsolationInterceptor());
+    options.AddInterceptors(new FaultIsolationInterceptor());
 });
 ```
 
@@ -45,7 +45,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
 {
     options.UseSqlServer("connection-string");
-    var interceptor = serviceProvider.GetRequiredService<EfCoreFaultIsolationInterceptor>();
+    var interceptor = serviceProvider.GetRequiredService<FaultIsolationInterceptor>();
     options.AddInterceptors(interceptor);
 });
 ```
@@ -79,7 +79,7 @@ await dbContext.SaveChangesAsync();
 
 ```csharp
 // 在需要的地方获取服务
-var faultIsolationService = serviceProvider.GetRequiredService<EfCoreFaultIsolationService<AppDbContext>>();
+var faultIsolationService = serviceProvider.GetRequiredService<FaultIsolationService<AppDbContext>>();
 faultIsolationService.ConfigureRecurringRetry<Product>();
 ```
 
@@ -120,7 +120,7 @@ faultIsolationService.ConfigureRecurringRetry<Product>();
 可以通过FaultIsolationOptions配置库的行为：
 
 ```csharp
-builder.Services.AddEfCoreFaultIsolation<AppDbContext>(options =>
+builder.Services.AddFaultIsolation<AppDbContext>(options =>
 {
     options.InitialRetryDelay = TimeSpan.FromSeconds(5);
     options.MaxRetries = 3;
@@ -134,11 +134,11 @@ builder.Services.AddEfCoreFaultIsolation<AppDbContext>(options =>
 
 ## 核心组件
 
-### EfCoreFaultIsolationInterceptor
+### FaultIsolationInterceptor
 
 EF Core拦截器，自动拦截所有SaveChanges操作，实现故障隔离和重试逻辑。
 
-### EfCoreFaultIsolationService
+### FaultIsolationService
 
 后台服务（IHostedService），负责：
 - 恢复挂起的重试任务

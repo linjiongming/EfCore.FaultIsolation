@@ -11,9 +11,9 @@ namespace EfCore.FaultIsolation.Interceptors;
 /// <summary>
 /// EF Core故障隔离拦截器，用于在SaveChanges时自动进行故障隔离处理
 /// </summary>
-public class EfCoreFaultIsolationInterceptor(
+public class FaultIsolationInterceptor(
     IServiceProvider serviceProvider,
-    ILogger<EfCoreFaultIsolationInterceptor> logger) : SaveChangesInterceptor
+    ILogger<FaultIsolationInterceptor> logger) : SaveChangesInterceptor
 {
     /// <summary>
     /// 在异步SaveChanges完成后拦截，处理故障
@@ -113,7 +113,7 @@ public class EfCoreFaultIsolationInterceptor(
 
         // 获取必要的服务
         var retryService = scope.ServiceProvider.GetRequiredService<IRetryService>();
-        var logger = scope.ServiceProvider.GetRequiredService<ILogger<EfCoreFaultIsolationInterceptor>>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<FaultIsolationInterceptor>>();
 
         try
         {

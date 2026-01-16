@@ -12,9 +12,9 @@ namespace EfCore.FaultIsolation.Services;
 /// EF Core 故障隔离服务，用于处理实体操作的故障隔离和自动重试
 /// </summary>
 /// <typeparam name="TDbContext">数据库上下文类型</typeparam>
-public class EfCoreFaultIsolationService<TDbContext>(
+public class FaultIsolationService<TDbContext>(
     IServiceProvider serviceProvider,
-    ILogger<EfCoreFaultIsolationService<TDbContext>> logger,
+    ILogger<FaultIsolationService<TDbContext>> logger,
     IDatabaseHealthChecker<TDbContext> healthChecker,
     HangfireSchedulerService schedulerService) : IHostedService where TDbContext : DbContext
 {
@@ -163,7 +163,7 @@ public class EfCoreFaultIsolationService<TDbContext>(
     /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Starting EfCoreFaultIsolationService");
+        logger.LogInformation("Starting FaultIsolationService");
 
         // 扫描当前程序集及所有引用程序集，收集所有实体类型
         ScanEntityTypes();
@@ -178,7 +178,7 @@ public class EfCoreFaultIsolationService<TDbContext>(
         healthChecker.StartMonitoring(30);
         logger.LogInformation("Health check monitoring started");
 
-        logger.LogInformation("EfCoreFaultIsolationService started successfully");
+        logger.LogInformation("FaultIsolationService started successfully");
     }
 
     /// <summary>
@@ -314,12 +314,12 @@ public class EfCoreFaultIsolationService<TDbContext>(
     /// <returns>异步任务</returns>
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("Stopping EfCoreFaultIsolationService");
+        logger.LogInformation("Stopping FaultIsolationService");
 
         // 停止健康检查监控
         healthChecker.StopMonitoring();
 
-        logger.LogInformation("EfCoreFaultIsolationService stopped successfully");
+        logger.LogInformation("FaultIsolationService stopped successfully");
         return Task.CompletedTask;
     }
 }

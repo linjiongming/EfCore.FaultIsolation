@@ -31,7 +31,7 @@ public class EfCoreFaultIsolationTests(ITestOutputHelper output)
         });
 
         // 添加故障隔离服务
-        services.AddEfCoreFaultIsolation<TestDbContext>();
+        services.AddFaultIsolation<TestDbContext>();
 
         return services.BuildServiceProvider();
     }
@@ -139,7 +139,7 @@ public class EfCoreFaultIsolationTests(ITestOutputHelper output)
         });
         
         // 添加故障隔离服务，使用唯一的数据库路径
-        services.AddEfCoreFaultIsolation<TestDbContext>(options =>
+        services.AddFaultIsolation<TestDbContext>(options =>
         {
             options.LiteDbConnectionString = "fault_retryable.db";
         });
@@ -236,7 +236,7 @@ public class EfCoreFaultIsolationTests(ITestOutputHelper output)
         services.AddSingleton(_ => new FaultIsolationOptions { LiteDbConnectionString = liteDbConnectionString });
         
         // 注册故障隔离拦截器
-        services.AddScoped<EfCoreFaultIsolationInterceptor>();
+        services.AddScoped<FaultIsolationInterceptor>();
         
         // 注册核心服务
         services.AddScoped<IRetryService>((sp) => new RetryService(sp, null));
@@ -248,7 +248,7 @@ public class EfCoreFaultIsolationTests(ITestOutputHelper output)
         var serviceProvider = services.BuildServiceProvider();
         
         // 获取拦截器
-        var interceptor = serviceProvider.GetRequiredService<EfCoreFaultIsolationInterceptor>();
+        var interceptor = serviceProvider.GetRequiredService<FaultIsolationInterceptor>();
         var faultStore = serviceProvider.GetRequiredService<IFaultIsolationStore<TestDbContext>>();
         
         // 创建DbContextOptions，包含拦截器
