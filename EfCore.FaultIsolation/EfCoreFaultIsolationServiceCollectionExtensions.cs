@@ -1,10 +1,7 @@
-using System;
-using System.IO;
-using Microsoft.EntityFrameworkCore;
 using EfCore.FaultIsolation.HealthChecks;
+using EfCore.FaultIsolation.Interceptors;
 using EfCore.FaultIsolation.Services;
 using EfCore.FaultIsolation.Stores;
-using Microsoft.Extensions.DependencyInjection;
 using Hangfire;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -36,26 +33,41 @@ public static class EfCoreFaultIsolationServiceCollectionExtensions
         // 注册健康检查服务
         services.AddScoped<IDatabaseHealthChecker<TDbContext>, EfCoreDatabaseHealthChecker<TDbContext>>();
 
-        // 注册核心服务
-        services.AddScoped<IRetryService>((sp) => new RetryService(options.InitialRetryDelay, sp));
-        services.AddScoped<HangfireSchedulerService>();
-        services.AddScoped<EfCoreFaultIsolationService<TDbContext>>();
-        services.AddScoped<RetryJobService>();
+        // 注册故障隔离拦截器
+        services.AddScoped<EfCoreFaultIsolationInterceptor>();
 
-        // 配置Hangfire服务但不添加Hangfire服务器
-        // 在测试环境中，Hangfire服务器可能会导致一些问题
+        // 注册核心服务
+        services.AddScoped<IRetryService>((sp) => new RetryService(sp, options.InitialRetryDelay));
+        services.AddScoped<HangfireSchedulerService>();
+        services.AddScoped<RetryJobService>();
+        services.AddHostedService<EfCoreFaultIsolationService<TDbContext>>();
+
+        // 配置Hangfire服务
         services.AddHangfire(configuration =>
         {
             configuration.UseStorage(new Hangfire.Storage.SQLite.SQLiteStorage(options.HangfireConnectionString));
         });
-
-        // 检查是否已经注册了HangfireServer，如果没有则添加
-        if (!services.Any(descriptor => descriptor.ImplementationType?.FullName == "Hangfire.HangfireServer"))
-        {
-            services.AddHangfireServer();
-        }
+        services.AddHangfireServer();
 
         return services;
+    }
+
+    /// <summary>
+    /// 为DbContext添加故障隔离拦截器
+    /// </summary>
+    /// <param name="optionsBuilder">DbContext选项构建器</param>
+    /// <param name="serviceProvider">服务提供程序</param>
+    /// <returns>DbContext选项构建器</returns>
+    public static DbContextOptionsBuilder UseEfCoreFaultIsolation(
+        this DbContextOptionsBuilder optionsBuilder,
+        IServiceProvider serviceProvider
+    )
+    {
+        // 获取故障隔离拦截器
+        var faultIsolationInterceptor = serviceProvider.GetRequiredService<EfCoreFaultIsolationInterceptor>();
+        optionsBuilder.AddInterceptors(faultIsolationInterceptor);
+
+        return optionsBuilder;
     }
 }
 
@@ -68,27 +80,27 @@ public class FaultIsolationOptions
     /// LiteDB 连接字符串
     /// </summary>
     public string? LiteDbConnectionString { get; set; }
-    
+
     /// <summary>
     /// Hangfire 连接字符串
     /// </summary>
     public string HangfireConnectionString { get; set; }
-    
+
     /// <summary>
     /// 最大重试次数
     /// </summary>
     public int MaxRetries { get; set; } = 5;
-    
+
     /// <summary>
     /// 初始重试延迟时间
     /// </summary>
-    public TimeSpan InitialRetryDelay { get; set; } = TimeSpan.FromSeconds(1);
-    
+    public TimeSpan InitialRetryDelay { get; set; } = TimeSpan.FromSeconds(10);
+
     /// <summary>
     /// 健康检查间隔（秒）
     /// </summary>
     public int HealthCheckIntervalSeconds { get; set; } = 30;
-    
+
     /// <summary>
     /// 初始化 FaultIsolationOptions 实例
     /// </summary>
@@ -97,12 +109,12 @@ public class FaultIsolationOptions
         // Create fault directory if it doesn't exist
         string faultDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "fault");
         Directory.CreateDirectory(faultDirectory);
-        
+
         // Set default Hangfire connection string to use fault directory
         HangfireConnectionString = Path.Combine(faultDirectory, "hangfire.db");
     }
 
-    internal System.Collections.Generic.HashSet<Type> IsolatedEntities { get; } = new();
+    internal System.Collections.Generic.HashSet<Type> IsolatedEntities { get; } = [];
 
     /// <summary>
     /// 添加需要故障隔离的实体类型

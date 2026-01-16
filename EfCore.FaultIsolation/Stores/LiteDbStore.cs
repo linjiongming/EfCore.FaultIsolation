@@ -1,12 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using LiteDB;
-using Microsoft.EntityFrameworkCore;
 using EfCore.FaultIsolation.Models;
+using LiteDB;
 
 namespace EfCore.FaultIsolation.Stores;
 
@@ -117,6 +110,15 @@ public class LiteDbStore<TDbContext> : IFaultIsolationStore<TDbContext> where TD
         var collection = GetDeadLetterCollection<TEntity>();
         collection.Insert(deadLetter);
         return ValueTask.CompletedTask;
+    }
+    
+    /// <inheritdoc />
+    public ValueTask<IEnumerable<DeadLetter<TEntity>>> GetAllDeadLettersAsync<TEntity>(CancellationToken cancellationToken = default) where TEntity : class
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var collection = GetDeadLetterCollection<TEntity>();
+        var deadLetters = collection.FindAll().ToList();
+        return ValueTask.FromResult((IEnumerable<DeadLetter<TEntity>>)deadLetters);
     }
     
     /// <inheritdoc />

@@ -1,7 +1,3 @@
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using EfCore.FaultIsolation.Models;
 
 namespace EfCore.FaultIsolation.Stores;
@@ -71,6 +67,14 @@ public interface IFaultIsolationStore<TDbContext> where TDbContext : DbContext
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>所有Fault集合的名称列表</returns>
     ValueTask<IEnumerable<string>> GetAllFaultCollectionNamesAsync(CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// 获取所有死信队列项
+    /// </summary>
+    /// <typeparam name="TEntity">实体类型</typeparam>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>死信队列项列表</returns>
+    ValueTask<IEnumerable<DeadLetter<TEntity>>> GetAllDeadLettersAsync<TEntity>(CancellationToken cancellationToken = default) where TEntity : class;
     
     /// <summary>
     /// 根据集合名称获取指定集合的待处理故障

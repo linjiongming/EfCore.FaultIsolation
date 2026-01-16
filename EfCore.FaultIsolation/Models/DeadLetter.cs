@@ -1,4 +1,3 @@
-using System;
 using LiteDB;
 
 namespace EfCore.FaultIsolation.Models;
@@ -44,4 +43,9 @@ public class DeadLetter<TEntity>
     /// 失败原因
     /// </summary>
     public string FailureReason { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// 操作类型（增删改）
+    /// </summary>
+    public EntityState Type { get; set; } = EntityState.Added;
 }

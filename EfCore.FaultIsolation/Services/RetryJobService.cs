@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using EfCore.FaultIsolation.Models;
 using EfCore.FaultIsolation.Stores;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,7 +17,7 @@ public class RetryJobService(
     {
         return serviceProvider.GetRequiredService<IFaultIsolationStore<TDbContext>>();
     }
-    
+
     /// <summary>
     /// 重试单个故障项
     /// </summary>
@@ -31,17 +26,17 @@ public class RetryJobService(
     /// <param name="faultId">故障项唯一标识符</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>异步操作结果</returns>
-    public async Task RetryJobAsync<TEntity, TDbContext>(Guid faultId, CancellationToken cancellationToken = default) 
-        where TEntity : class 
+    public async Task RetryJobAsync<TEntity, TDbContext>(Guid faultId, CancellationToken cancellationToken = default)
+        where TEntity : class
         where TDbContext : DbContext
     {
         var faultStore = GetFaultStore<TDbContext>();
         var pendingFaults = await faultStore.GetPendingFaultsAsync<TEntity>(1, cancellationToken);
         var fault = pendingFaults.FirstOrDefault(f => f.Id == faultId);
-        
+
         if (fault is null)
             return;
-        
+
         try
         {
             await retryService.RetrySingleAsync<TEntity, TDbContext>(fault.Data, cancellationToken);
@@ -52,8 +47,8 @@ public class RetryJobService(
             fault.RetryCount++;
             fault.LastRetryTime = DateTime.UtcNow;
             fault.ErrorMessage = ex.Message;
-            
-            if (fault.RetryCount >= retryService.GetMaxRetries() || await retryService.IsDataErrorException(ex))
+
+            if (fault.RetryCount >= retryService.MaxRetries || retryService.IsDataErrorException(ex))
             {
                 // 重试超过最大次数或数据错误，转移到死信
                 var deadLetter = new DeadLetter<TEntity>
@@ -63,28 +58,28 @@ public class RetryJobService(
                     Timestamp = fault.Timestamp,
                     LastRetryTime = fault.LastRetryTime,
                     ErrorMessage = fault.ErrorMessage,
-                    FailureReason = fault.RetryCount >= retryService.GetMaxRetries() ? "Max retries exceeded" : "Data validation error"
+                    FailureReason = fault.RetryCount >= retryService.MaxRetries ? "Max retries exceeded" : "Data validation error"
                 };
-                
+
                 await faultStore.SaveDeadLetterAsync(deadLetter, cancellationToken);
-                        await faultStore.DeleteFaultAsync<TEntity>(fault.Id, cancellationToken);
+                await faultStore.DeleteFaultAsync<TEntity>(fault.Id, cancellationToken);
             }
             else
             {
                 // 计算指数退避时间
                 var delay = retryService.CalculateExponentialBackoff(fault.RetryCount);
                 fault.NextRetryTime = DateTime.UtcNow.Add(delay);
-                
+
                 await faultStore.UpdateFaultAsync(fault, cancellationToken);
-                
+
                 // 通过服务提供程序获取HangfireSchedulerService实例，避免循环依赖
                 using var scope = serviceProvider.CreateScope();
                 var schedulerService = scope.ServiceProvider.GetRequiredService<HangfireSchedulerService>();
-                schedulerService.ScheduleRetry<TEntity, TDbContext>(fault.Id, fault.RetryCount, delay);
+                schedulerService.ScheduleRetry<TEntity, TDbContext>(fault.Id, fault.RetryCount, delay, CancellationToken.None);
             }
         }
     }
-    
+
     /// <summary>
     /// 批量重试故障项
     /// </summary>
@@ -93,21 +88,21 @@ public class RetryJobService(
     /// <param name="batchSize">批量大小，默认值为100</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>异步操作结果</returns>
-    public async Task BatchRetryJobAsync<TEntity, TDbContext>(int batchSize = 100, CancellationToken cancellationToken = default) 
-        where TEntity : class 
+    public async Task BatchRetryJobAsync<TEntity, TDbContext>(int batchSize = 100, CancellationToken cancellationToken = default)
+        where TEntity : class
         where TDbContext : DbContext
     {
         var faultStore = GetFaultStore<TDbContext>();
         var pendingFaults = await faultStore.GetPendingFaultsAsync<TEntity>(batchSize, cancellationToken);
-        
+
         if (!pendingFaults.Any())
             return;
-        
+
         try
         {
             // 尝试批量重试
             await retryService.RetryBatchAsync<TEntity, TDbContext>(pendingFaults.Select(f => f.Data), cancellationToken);
-            
+
             // 全部成功，删除所有重试记录
             foreach (var fault in pendingFaults)
             {
@@ -116,7 +111,7 @@ public class RetryJobService(
         }
         catch (Exception ex)
         {
-            if (await retryService.IsRetryableException(ex))
+            if (retryService.IsRetryableException(ex))
             {
                 // 批量重试失败是因为数据库连接问题，更新所有故障记录的重试次数和下次重试时间
                 foreach (var fault in pendingFaults)
@@ -124,8 +119,8 @@ public class RetryJobService(
                     fault.RetryCount++;
                     fault.LastRetryTime = DateTime.UtcNow;
                     fault.ErrorMessage = ex.Message;
-                    
-                    if (fault.RetryCount >= retryService.GetMaxRetries())
+
+                    if (fault.RetryCount >= retryService.MaxRetries)
                     {
                         // 超过最大重试次数，转移到死信
                         var deadLetter = new DeadLetter<TEntity>
@@ -137,7 +132,7 @@ public class RetryJobService(
                             ErrorMessage = fault.ErrorMessage,
                             FailureReason = "Max retries exceeded"
                         };
-                        
+
                         await faultStore.SaveDeadLetterAsync(deadLetter, cancellationToken);
                         await faultStore.DeleteFaultAsync<TEntity>(fault.Id, cancellationToken);
                     }
@@ -145,12 +140,12 @@ public class RetryJobService(
                     {
                         var delay = retryService.CalculateExponentialBackoff(fault.RetryCount);
                         fault.NextRetryTime = DateTime.UtcNow.Add(delay);
-                        
+
                         await faultStore.UpdateFaultAsync(fault, cancellationToken);
                     }
                 }
             }
-            else if (await retryService.IsDataErrorException(ex))
+            else if (retryService.IsDataErrorException(ex))
             {
                 // 批量重试失败是因为数据错误，降级为逐条重试
                 foreach (var fault in pendingFaults)
@@ -160,7 +155,7 @@ public class RetryJobService(
             }
         }
     }
-    
+
     /// <summary>
     /// 基于类型的批量重试方法（非泛型）
     /// </summary>
@@ -172,17 +167,13 @@ public class RetryJobService(
     public async Task BatchRetryJobAsync(Type entityType, Type dbContextType, int batchSize = 100, CancellationToken cancellationToken = default)
     {
         // 获取实体类型和DbContext类型的泛型BatchRetryJobAsync方法
-        var method = typeof(RetryJobService).GetMethod(nameof(BatchRetryJobAsync), new[] { typeof(int) });
-        if (method == null)
-        {
-            throw new InvalidOperationException($"Could not find BatchRetryJobAsync method with int parameter");
-        }
-        
+        var method = typeof(RetryJobService).GetMethod(nameof(BatchRetryJobAsync), [typeof(int)]) ?? throw new InvalidOperationException($"Could not find BatchRetryJobAsync method with int parameter");
+
         // 构造泛型方法
         var genericMethod = method.MakeGenericMethod(entityType, dbContextType);
-        
+
         // 调用泛型方法
-        var taskResult = genericMethod.Invoke(this, new object[] { batchSize, cancellationToken });
+        var taskResult = genericMethod.Invoke(this, [batchSize, cancellationToken]);
         if (taskResult is Task task)
         {
             await task;
@@ -192,9 +183,9 @@ public class RetryJobService(
             throw new InvalidOperationException($"Expected Task result from BatchRetryJobAsync invocation, got {taskResult?.GetType().Name}");
         }
     }
-    
-    private async Task RetrySingleWithDataErrorHandlingAsync<TEntity, TDbContext>(FaultModel<TEntity> fault, CancellationToken cancellationToken = default) 
-        where TEntity : class 
+
+    private async Task RetrySingleWithDataErrorHandlingAsync<TEntity, TDbContext>(FaultModel<TEntity> fault, CancellationToken cancellationToken = default)
+        where TEntity : class
         where TDbContext : DbContext
     {
         var faultStore = GetFaultStore<TDbContext>();
@@ -208,8 +199,8 @@ public class RetryJobService(
             fault.RetryCount++;
             fault.LastRetryTime = DateTime.UtcNow;
             fault.ErrorMessage = ex.Message;
-            
-            if (await retryService.IsDataErrorException(ex))
+
+            if (retryService.IsDataErrorException(ex))
             {
                 // 单条数据错误，直接转移到死信
                 var deadLetter = new DeadLetter<TEntity>
@@ -221,11 +212,11 @@ public class RetryJobService(
                     ErrorMessage = fault.ErrorMessage,
                     FailureReason = "Data validation error"
                 };
-                
+
                 await faultStore.SaveDeadLetterAsync(deadLetter, cancellationToken);
                 await faultStore.DeleteFaultAsync<TEntity>(fault.Id, cancellationToken);
             }
-            else if (fault.RetryCount >= retryService.GetMaxRetries())
+            else if (fault.RetryCount >= retryService.MaxRetries)
             {
                 // 超过最大重试次数，转移到死信
                 var deadLetter = new DeadLetter<TEntity>
@@ -237,20 +228,18 @@ public class RetryJobService(
                     ErrorMessage = fault.ErrorMessage,
                     FailureReason = "Max retries exceeded"
                 };
-                
-                await faultStore.SaveDeadLetterAsync(deadLetter);
-                await faultStore.DeleteFaultAsync<TEntity>(fault.Id);
+
+                await faultStore.SaveDeadLetterAsync(deadLetter, CancellationToken.None);
+                await faultStore.DeleteFaultAsync<TEntity>(fault.Id, CancellationToken.None);
             }
             else
             {
                 // 其他临时错误，继续重试
                 var delay = retryService.CalculateExponentialBackoff(fault.RetryCount);
                 fault.NextRetryTime = DateTime.UtcNow.Add(delay);
-                
+
                 await faultStore.UpdateFaultAsync(fault, cancellationToken);
             }
         }
     }
-    
-
 }

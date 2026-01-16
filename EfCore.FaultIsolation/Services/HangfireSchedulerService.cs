@@ -1,10 +1,5 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using Hangfire;
-using Hangfire.Common;
 using Hangfire.Storage.SQLite;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -13,13 +8,15 @@ namespace EfCore.FaultIsolation.Services;
 /// <summary>
 /// Hangfire调度服务，用于管理重试任务的调度
 /// </summary>
-public class HangfireSchedulerService(IServiceProvider serviceProvider, ILogger<HangfireSchedulerService> logger)
+public class HangfireSchedulerService(
+    IServiceProvider serviceProvider, 
+    ILogger<HangfireSchedulerService> logger)
 {
     /// <summary>
     /// 配置Hangfire使用SQLite存储
     /// </summary>
     /// <param name="sqliteConnectionString">SQLite连接字符串</param>
-    public void ConfigureHangfire(string sqliteConnectionString = "hangfire.db")
+    public void ConfigureHangfire(string sqliteConnectionString)
     {
         // 配置Hangfire使用服务提供程序激活器
         GlobalConfiguration.Configuration
@@ -100,13 +97,10 @@ public class HangfireSchedulerService(IServiceProvider serviceProvider, ILogger<
             // 使用Hangfire调度非泛型批量重试任务
             // 使用反射创建泛型方法调用
             var method = typeof(HangfireSchedulerService)
-                .GetMethod(nameof(ScheduleBatchRetry), new Type[] { typeof(int), typeof(CancellationToken) })
+                .GetMethod(nameof(ScheduleBatchRetry), [typeof(int), typeof(CancellationToken)])
                 ?.MakeGenericMethod(entityType, dbContextType);
             
-            if (method != null)
-            {
-                method.Invoke(this, new object[] { batchSize, cancellationToken });
-            }
+            method?.Invoke(this, [batchSize, cancellationToken]);
         }
         catch (Exception ex)
         {
@@ -156,13 +150,10 @@ public class HangfireSchedulerService(IServiceProvider serviceProvider, ILogger<
         {
             // 使用反射获取泛型TriggerImmediateBatchRetry方法
             var method = typeof(HangfireSchedulerService)
-                .GetMethod(nameof(TriggerImmediateBatchRetry), new Type[] { typeof(int), typeof(CancellationToken) })
+                .GetMethod(nameof(TriggerImmediateBatchRetry), [typeof(int), typeof(CancellationToken)])
                 ?.MakeGenericMethod(entityType, dbContextType);
             
-            if (method != null)
-            {
-                method.Invoke(this, new object[] { batchSize, cancellationToken });
-            }
+            method?.Invoke(this, [batchSize, cancellationToken]);
         }
         catch (Exception ex)
         {

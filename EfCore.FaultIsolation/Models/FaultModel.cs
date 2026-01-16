@@ -1,4 +1,3 @@
-using System;
 using LiteDB;
 
 namespace EfCore.FaultIsolation.Models;
@@ -44,4 +43,9 @@ public class FaultModel<TEntity>
     /// 错误消息
     /// </summary>
     public string? ErrorMessage { get; set; }
+    
+    /// <summary>
+    /// 操作类型（增删改）
+    /// </summary>
+    public EntityState Type { get; set; } = EntityState.Added;
 }

@@ -4,7 +4,7 @@ EfCore.FaultIsolation是一个用于Entity Framework Core的容错隔离库，�
 
 ## 主要功能
 
-- 批量和单条数据保存的容错处理
+- **自动容错处理**：通过EF Core拦截器自动处理所有SaveChanges操作
 - 基于异常类型的智能重试策略
 - 故障数据的隔离存储（使用LiteDB）
 - 死信队列机制
@@ -24,33 +24,63 @@ dotnet add package EfCore.FaultIsolation
 在Startup.cs或Program.cs中配置服务：
 
 ```csharp
-builder.Services.AddEfCoreFaultIsolation(options =>
+builder.Services.AddEfCoreFaultIsolation<AppDbContext>();
+```
+
+### 3. 配置DbContext
+
+在DbContext的OnConfiguring方法中添加拦截器，或在服务配置时添加：
+
+```csharp
+builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    options.UseLiteDbStore();
-    options.UseHangfireScheduler();
+    options.UseSqlServer("connection-string");
+    options.AddInterceptors(new EfCoreFaultIsolationInterceptor());
 });
 ```
 
-### 3. 启动服务
+或者通过服务提供程序获取拦截器：
 
 ```csharp
-var faultIsolationService = app.Services.GetRequiredService<EfCoreFaultIsolationService>();
-await faultIsolationService.StartAsync();
+builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
+{
+    options.UseSqlServer("connection-string");
+    var interceptor = serviceProvider.GetRequiredService<EfCoreFaultIsolationInterceptor>();
+    options.AddInterceptors(interceptor);
+});
 ```
 
 ### 4. 使用服务
 
+**现在可以直接使用EF Core的原生API**，故障隔离会自动生效：
+
 ```csharp
 // 批量保存
 var entities = new List<Product> { new Product { Name = "Product 1" }, new Product { Name = "Product 2" } };
-await faultIsolationService.SaveBatchAsync<Product, AppDbContext>(entities);
+dbContext.AddRange(entities);
+await dbContext.SaveChangesAsync();
 
 // 单条保存
 var product = new Product { Name = "Product 3" };
-await faultIsolationService.SaveSingleAsync<Product, AppDbContext>(product);
+dbContext.Add(product);
+await dbContext.SaveChangesAsync();
 
-// 手动触发批量重试（可选，仅在需要时使用）
-faultIsolationService.ConfigureRecurringRetry<Product, AppDbContext>();
+// 更新操作
+product.Name = "Updated Product";
+dbContext.Update(product);
+await dbContext.SaveChangesAsync();
+
+// 删除操作
+dbContext.Remove(product);
+await dbContext.SaveChangesAsync();
+```
+
+**配置定期重试任务**（可选）：
+
+```csharp
+// 在需要的地方获取服务
+var faultIsolationService = serviceProvider.GetRequiredService<EfCoreFaultIsolationService<AppDbContext>>();
+faultIsolationService.ConfigureRecurringRetry<Product>();
 ```
 
 ## 核心概念
@@ -79,7 +109,7 @@ faultIsolationService.ConfigureRecurringRetry<Product, AppDbContext>();
 
 - **致命异常(Fatal)**: 直接保存到死信队列
 - **可重试异常(Retryable)**: 保存到故障存储，稍后重试
-- **数据错误(DataError)**: 单条数据错误时降级为逐条插入
+- **数据错误(DataError)**: 单条数据错误时保存到死信队列
 
 ## 健康检查
 
@@ -87,8 +117,33 @@ faultIsolationService.ConfigureRecurringRetry<Product, AppDbContext>();
 
 ## 配置选项
 
-- `UseLiteDbStore()`: 使用LiteDB作为故障存储
-- `UseHangfireScheduler()`: 使用Hangfire作为定时任务调度器
+可以通过FaultIsolationOptions配置库的行为：
+
+```csharp
+builder.Services.AddEfCoreFaultIsolation<AppDbContext>(options =>
+{
+    options.InitialRetryDelay = TimeSpan.FromSeconds(5);
+    options.MaxRetries = 3;
+    options.HealthCheckIntervalSeconds = 30;
+    // 自定义LiteDB连接字符串
+    options.LiteDbConnectionString = "Filename=custom_fault.db;Connection=shared";
+    // 自定义Hangfire连接字符串
+    options.HangfireConnectionString = "Filename=custom_hangfire.db;Connection=shared";
+});
+```
+
+## 核心组件
+
+### EfCoreFaultIsolationInterceptor
+
+EF Core拦截器，自动拦截所有SaveChanges操作，实现故障隔离和重试逻辑。
+
+### EfCoreFaultIsolationService
+
+后台服务（IHostedService），负责：
+- 恢复挂起的重试任务
+- 监控数据库连接状态
+- 配置和管理定期重试任务
 
 ## 贡献
 
