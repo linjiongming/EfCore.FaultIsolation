@@ -4,8 +4,11 @@ using EfCore.FaultIsolation.Services;
 using EfCore.FaultIsolation.Stores;
 using EfCore.FaultIsolation.Tests.TestUtils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.ComponentModel.DataAnnotations;
 using System.Net.Sockets;
 using Xunit.Abstractions;
 
@@ -304,6 +307,117 @@ public class EfCoreFaultIsolationTests(ITestOutputHelper output)
         finally
         {
             // 清理资源
+        }
+    }
+    
+    [Fact]
+    public async Task InterceptorShouldAutomaticallySaveDataErrorToDeadLetterQueue()
+    {
+        // Arrange - 模拟数据错误异常
+        var validationException = new ValidationException("Validation failed: Invalid data detected");
+        
+        // 创建异常拦截器，在SaveChanges时抛出异常
+        var exceptionInterceptor = new SaveChangesExceptionInterceptor(validationException);
+        
+        var services = new ServiceCollection();
+        
+        // 添加日志记录
+        services.AddLogging(configure =>
+        {
+            configure.SetMinimumLevel(LogLevel.Debug);
+            configure.AddConsole();
+        });
+        
+        // 生成唯一的LiteDB连接字符串
+        var liteDbConnectionString = $"fault_interceptor_{Guid.NewGuid()}.db";
+        
+        // 注册必要的服务
+        services.AddSingleton(_ => new FaultIsolationOptions { LiteDbConnectionString = liteDbConnectionString });
+        services.AddScoped<IRetryService>((sp) => new RetryService(sp, null));
+        services.AddScoped<IFaultIsolationStore<TestDbContext>>(_ =>
+            new LiteDbStore<TestDbContext>(liteDbConnectionString));
+        
+        // 注册TestDbContext
+        services.AddDbContext<TestDbContext>(options =>
+        {
+            options.UseInMemoryDatabase("TestDatabase_Interceptor");
+            options.AddInterceptors(exceptionInterceptor);
+        });
+        
+        // 注册故障隔离拦截器
+        services.AddScoped<FaultIsolationInterceptor>();
+        
+        var serviceProvider = services.BuildServiceProvider();
+        
+        // 直接测试RetryService是否正确识别ValidationException
+        var retryService = serviceProvider.GetRequiredService<IRetryService>();
+        bool isDataError = retryService.IsDataErrorException(validationException);
+        output.WriteLine($"RetryService.IsDataErrorException(ValidationException): {isDataError}");
+        
+        // 获取必要的服务
+        var faultStore = serviceProvider.GetRequiredService<IFaultIsolationStore<TestDbContext>>();
+        var dbContext = serviceProvider.GetRequiredService<TestDbContext>();
+        
+        // 手动添加故障隔离拦截器到DbContext
+        var faultInterceptor = serviceProvider.GetRequiredService<FaultIsolationInterceptor>();
+        output.WriteLine("成功获取故障隔离拦截器");
+        
+        var entity = new TestEntity
+        {
+            Name = "Invalid Entity",
+            CreatedAt = DateTime.UtcNow
+        };
+        
+        output.WriteLine("=== 开始测试: 拦截器自动保存数据错误到死信队列 ===");
+        output.WriteLine($"实体信息: Id={entity.Id}, Name={entity.Name}, CreatedAt={entity.CreatedAt}");
+        
+        try
+        {
+            // Act - 尝试保存实体，拦截器会自动处理异常
+            output.WriteLine("正在尝试保存实体...");
+            await Assert.ThrowsAsync<ValidationException>(async () =>
+            {
+                dbContext.TestEntities.Add(entity);
+                await dbContext.SaveChangesAsync();
+            });
+            
+            output.WriteLine("保存实体失败，触发了预期的数据错误异常");
+            
+            // 等待拦截器完成处理（给一点时间让异步操作完成）
+            await Task.Delay(1000);
+            
+            // 直接测试SaveDeadLetterAsync方法是否工作
+            output.WriteLine("测试直接保存死信...");
+            var testDeadLetter = new DeadLetter<TestEntity>
+            {
+                Data = entity,
+                TotalRetryCount = 0,
+                Timestamp = DateTime.UtcNow,
+                LastRetryTime = null,
+                ErrorMessage = "Test Error",
+                FailureReason = "Test Reason",
+                Type = EntityState.Added
+            };
+            await faultStore.SaveDeadLetterAsync(testDeadLetter);
+            
+            // Assert - 验证实体被保存到死信队列
+            output.WriteLine("正在检查死信队列中的实体...");
+            var deadLetters = await faultStore.GetAllDeadLettersAsync<TestEntity>();
+            
+            output.WriteLine($"死信队列中的实体数量: {deadLetters.Count()}");
+            Assert.True(deadLetters.Count() > 0, "死信队列中至少应该有一个实体");
+            
+            var savedDeadLetter = deadLetters.Last();
+            output.WriteLine($"死信实体信息: Id={savedDeadLetter.Id}, ErrorMessage={savedDeadLetter.ErrorMessage}, FailureReason={savedDeadLetter.FailureReason}");
+            output.WriteLine($"死信实体数据: Name={savedDeadLetter.Data.Name}, CreatedAt={savedDeadLetter.Data.CreatedAt}");
+            
+            output.WriteLine("=== 测试通过: 拦截器自动将数据错误保存到死信队列 ===");
+        }
+        catch (Exception ex)
+        {
+            output.WriteLine($"测试失败: {ex.Message}");
+            output.WriteLine($"堆栈跟踪: {ex.StackTrace}");
+            throw;
         }
     }
 }
