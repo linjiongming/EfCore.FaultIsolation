@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <!-- NuGet Package Metadata -->
     <PackageId>EfCore.FaultIsolation</PackageId>
-    <Version>1.0.0.3</Version>
+    <Version>1.0.0.4</Version>
     <Authors>linjiongming</Authors>
     <Company>linjiongming</Company>
     <Product>EfCore.FaultIsolation</Product>
