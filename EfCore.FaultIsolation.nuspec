@@ -10,14 +10,16 @@
     <license type="expression">MIT</license>
     <projectUrl>https://github.com/linjiongming/EfCore.FaultIsolation</projectUrl>
     <description>Entity Framework Core fault isolation library with automatic retry, fault isolation, and dead letter queue functionality.</description>
-    <releaseNotes>Initial release</releaseNotes>
+    <releaseNotes>Added configurable entity type and change type filtering support</releaseNotes>
     <copyright>2026 linjiongming</copyright>
     <tags>EntityFrameworkCore EFCore FaultIsolation Retry DeadLetterQueue</tags>
+    <readme>README.md</readme>
   </metadata>
   <files>
     <file src="EfCore.FaultIsolation\bin\Release\net10.0\EfCore.FaultIsolation.dll" target="lib\net10.0" />
     <file src="EfCore.FaultIsolation\bin\Release\net10.0\EfCore.FaultIsolation.pdb" target="lib\net10.0" />
     <file src="EfCore.FaultIsolation\bin\Release\net10.0\EfCore.FaultIsolation.xml" target="lib\net10.0" />
     <file src="README.md" target="docs" />
+    <file src="README.md" target="README.md" />
   </files>
 </package>
