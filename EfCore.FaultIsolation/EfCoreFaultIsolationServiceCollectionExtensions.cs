@@ -126,12 +126,70 @@ public class FaultIsolationOptions
     internal System.Collections.Generic.HashSet<EntityState> CapturedChangeTypes { get; } = [];
 
     /// <summary>
-    /// 添加需要故障隔离的实体类型
+    /// 实体类型到变更类型集合的映射
+    /// </summary>
+    internal System.Collections.Generic.Dictionary<Type, HashSet<EntityState>> EntityChangeTypes { get; } = [];
+
+    /// <summary>
+    /// 添加需要故障隔离的实体类型并返回配置器
     /// </summary>
     /// <typeparam name="TEntity">实体类型</typeparam>
-    public void AddIsolatedEntity<TEntity>() where TEntity : class
+    /// <returns>实体配置器</returns>
+    public EntityConfiguration<TEntity> AddIsolatedEntity<TEntity>() where TEntity : class
     {
-        IsolatedEntities.Add(typeof(TEntity));
+        var entityType = typeof(TEntity);
+        IsolatedEntities.Add(entityType);
+        return new EntityConfiguration<TEntity>(this);
+    }
+
+    /// <summary>
+    /// 实体配置器类，用于支持流畅API
+    /// </summary>
+    /// <typeparam name="TEntity">实体类型</typeparam>
+    public class EntityConfiguration<TEntity> where TEntity : class
+    {
+        private readonly FaultIsolationOptions _options;
+        private readonly Type _entityType = typeof(TEntity);
+
+        /// <summary>
+        /// 初始化实体配置器
+        /// </summary>
+        /// <param name="options">故障隔离选项</param>
+        internal EntityConfiguration(FaultIsolationOptions options)
+        {
+            _options = options;
+        }
+
+        /// <summary>
+        /// 为实体类型配置需要捕获的变更类型
+        /// </summary>
+        /// <param name="changeTypes">变更类型数组</param>
+        /// <returns>当前配置器实例</returns>
+        public EntityConfiguration<TEntity> CaptureChangeTypes(params EntityState[] changeTypes)
+        {
+            if (!_options.EntityChangeTypes.ContainsKey(_entityType))
+            {
+                _options.EntityChangeTypes[_entityType] = [];
+            }
+
+            foreach (var changeType in changeTypes)
+            {
+                _options.EntityChangeTypes[_entityType].Add(changeType);
+            }
+
+            return this;
+        }
+    }
+
+    /// <summary>
+    /// 添加需要故障隔离的实体类型（非泛型版本，保持向后兼容）
+    /// </summary>
+    /// <param name="entityType">实体类型</param>
+    /// <returns>当前选项实例</returns>
+    public FaultIsolationOptions AddIsolatedEntity(Type entityType)
+    {
+        IsolatedEntities.Add(entityType);
+        return this;
     }
 
     /// <summary>
@@ -155,7 +213,7 @@ public class FaultIsolationOptions
     }
 
     /// <summary>
-    /// 添加需要捕获的变更类型
+    /// 添加需要捕获的变更类型（全局配置）
     /// </summary>
     /// <param name="changeTypes">变更类型数组</param>
     public void AddCapturedChangeTypes(params EntityState[] changeTypes)
@@ -167,6 +225,25 @@ public class FaultIsolationOptions
     }
 
     /// <summary>
+    /// 为特定实体类型添加需要捕获的变更类型
+    /// </summary>
+    /// <typeparam name="TEntity">实体类型</typeparam>
+    /// <param name="changeTypes">变更类型数组</param>
+    public void AddCapturedChangeTypes<TEntity>(params EntityState[] changeTypes) where TEntity : class
+    {
+        var entityType = typeof(TEntity);
+        if (!EntityChangeTypes.ContainsKey(entityType))
+        {
+            EntityChangeTypes[entityType] = [];
+        }
+        
+        foreach (var changeType in changeTypes)
+        {
+            EntityChangeTypes[entityType].Add(changeType);
+        }
+    }
+
+    /// <summary>
     /// 检查指定的变更类型是否需要捕获
     /// </summary>
     /// <param name="changeType">变更类型</param>
@@ -174,5 +251,43 @@ public class FaultIsolationOptions
     public bool IsChangeTypeCaptured(EntityState changeType)
     {
         return CapturedChangeTypes.Count == 0 || CapturedChangeTypes.Contains(changeType);
+    }
+
+    /// <summary>
+    /// 检查指定实体类型的变更类型是否需要捕获
+    /// </summary>
+    /// <typeparam name="TEntity">实体类型</typeparam>
+    /// <param name="changeType">变更类型</param>
+    /// <returns>是否需要捕获</returns>
+    public bool IsChangeTypeCaptured<TEntity>(EntityState changeType) where TEntity : class
+    {
+        var entityType = typeof(TEntity);
+        
+        // 如果有实体类型特定的配置，则使用该配置
+        if (EntityChangeTypes.ContainsKey(entityType))
+        {
+            return EntityChangeTypes[entityType].Contains(changeType);
+        }
+        
+        // 否则使用全局配置
+        return IsChangeTypeCaptured(changeType);
+    }
+
+    /// <summary>
+    /// 检查指定实体类型的变更类型是否需要捕获
+    /// </summary>
+    /// <param name="entityType">实体类型</param>
+    /// <param name="changeType">变更类型</param>
+    /// <returns>是否需要捕获</returns>
+    public bool IsChangeTypeCaptured(Type entityType, EntityState changeType)
+    {
+        // 如果有实体类型特定的配置，则使用该配置
+        if (EntityChangeTypes.ContainsKey(entityType))
+        {
+            return EntityChangeTypes[entityType].Contains(changeType);
+        }
+        
+        // 否则使用全局配置
+        return IsChangeTypeCaptured(changeType);
     }
 }

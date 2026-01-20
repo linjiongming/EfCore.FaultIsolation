@@ -40,6 +40,64 @@ public class EfCoreFaultIsolationTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void ShouldConfigureEntitySpecificChangeTypesCorrectly()
+    {
+        // Arrange
+        var options = new FaultIsolationOptions();
+        
+        // Act: 配置不同的变更类型
+        
+        // 全局配置：捕获Added和Modified类型
+        options.AddCapturedChangeTypes(EntityState.Added, EntityState.Modified);
+        
+        // 为TestEntity配置只捕获Added类型（覆盖全局配置）
+        options.AddCapturedChangeTypes<TestEntity>(EntityState.Added);
+        
+        // Assert: 验证配置是否正确
+        
+        // 对于TestEntity，应该只捕获Added类型
+        Assert.True(options.IsChangeTypeCaptured<TestEntity>(EntityState.Added));
+        Assert.False(options.IsChangeTypeCaptured<TestEntity>(EntityState.Modified));
+        Assert.False(options.IsChangeTypeCaptured<TestEntity>(EntityState.Deleted));
+        
+        // 使用Type参数的重载版本
+        Assert.True(options.IsChangeTypeCaptured(typeof(TestEntity), EntityState.Added));
+        Assert.False(options.IsChangeTypeCaptured(typeof(TestEntity), EntityState.Modified));
+        
+        // 对于没有特定配置的类型（假设我们有一个TestEntity3类型），应该使用全局配置
+        // 由于我们没有TestEntity3类型，我们可以直接测试全局配置
+        Assert.True(options.IsChangeTypeCaptured(EntityState.Added));
+        Assert.True(options.IsChangeTypeCaptured(EntityState.Modified));
+        Assert.False(options.IsChangeTypeCaptured(EntityState.Deleted));
+    }
+
+    [Fact]
+    public void ShouldSupportFluentApiForEntityConfiguration()
+    {
+        // Arrange & Act
+        var options = new FaultIsolationOptions();
+        
+        // 使用流畅API配置
+        options.AddIsolatedEntity<TestEntity>()
+            .CaptureChangeTypes(EntityState.Added, EntityState.Modified);
+        
+        // 配置另一个实体
+        options.AddIsolatedEntity<TestEntity>()
+            .CaptureChangeTypes(EntityState.Deleted);
+        
+        // Assert: 验证配置是否正确
+        
+        // 验证实体是否被添加到隔离列表
+        Assert.True(options.IsEntityIsolated<TestEntity>());
+        
+        // 验证变更类型配置
+        // 注意：第二次调用CaptureChangeTypes会添加到现有的配置中，而不是替换
+        Assert.True(options.IsChangeTypeCaptured<TestEntity>(EntityState.Added));
+        Assert.True(options.IsChangeTypeCaptured<TestEntity>(EntityState.Modified));
+        Assert.True(options.IsChangeTypeCaptured<TestEntity>(EntityState.Deleted));
+    }
+
+    [Fact]
     public async Task SaveSingleAsync_ShouldSaveEntitySuccessfully()
     {
         // Arrange

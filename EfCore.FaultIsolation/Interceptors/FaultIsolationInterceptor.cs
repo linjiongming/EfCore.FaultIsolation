@@ -40,13 +40,13 @@ public class FaultIsolationInterceptor(
                 try
                 {
                     // 捕获所有需要保存的实体，根据配置过滤
-                    var entitiesToSave = eventData.Context.ChangeTracker.Entries()
-                        .Where(e => 
-                            e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted &&
-                            options.IsChangeTypeCaptured(e.State) &&
-                            options.IsEntityIsolated(e.Entity.GetType())
-                        )
-                        .ToList();
+            var entitiesToSave = eventData.Context.ChangeTracker.Entries()
+                .Where(e => 
+                    e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted &&
+                    options.IsChangeTypeCaptured(e.Entity.GetType(), e.State) &&
+                    options.IsEntityIsolated(e.Entity.GetType())
+                )
+                .ToList();
 
                     if (entitiesToSave.Count > 0)
                     {
@@ -85,7 +85,7 @@ public class FaultIsolationInterceptor(
             var entitiesToSave = eventData.Context.ChangeTracker.Entries()
                 .Where(e => 
                     e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted &&
-                    options.IsChangeTypeCaptured(e.State) &&
+                    options.IsChangeTypeCaptured(e.Entity.GetType(), e.State) &&
                     options.IsEntityIsolated(e.Entity.GetType())
                 )
                 .ToList();

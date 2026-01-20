@@ -136,11 +136,16 @@ builder.Services.AddFaultIsolation<AppDbContext>(options =>
     options.HangfireConnectionString = "Filename=custom_hangfire.db;Connection=shared";
     
     // 实体类型隔离配置
-    // 只捕获特定实体类型的故障（不配置则捕获所有实体类型）
     options.AddIsolatedEntity<Product>();
     options.AddIsolatedEntity<Order>();
     
-    // 变更类型捕获配置
+    options.AddIsolatedEntity<Product>()
+        .CaptureChangeTypes(EntityState.Added, EntityState.Modified);
+    
+    options.AddIsolatedEntity<Order>()
+        .CaptureChangeTypes(EntityState.Deleted);
+    
+    // 全局变更类型捕获配置
     // 只捕获特定变更类型（不配置则捕获所有变更类型）
     options.AddCapturedChangeTypes(EntityState.Added, EntityState.Modified);
 });
@@ -153,13 +158,28 @@ builder.Services.AddFaultIsolation<AppDbContext>(options =>
    - 如果不配置`AddCapturedChangeTypes`，则捕获所有变更类型（Added、Modified、Deleted）
 
 2. **实体类型隔离**：
-   - 使用`AddIsolatedEntity<TEntity>()`方法添加需要隔离的实体类型
+   - 使用`AddIsolatedEntity<TEntity>()`方法添加需要隔离的实体类型并返回配置器
    - 可以添加多个实体类型
+   - 支持流畅API链式调用
 
 3. **变更类型捕获**：
-   - 使用`AddCapturedChangeTypes(params EntityState[])`方法添加需要捕获的变更类型
+   - 使用`AddCapturedChangeTypes(params EntityState[])`方法添加全局需要捕获的变更类型
+   - 使用`AddCapturedChangeTypes<TEntity>(params EntityState[])`方法为特定实体类型配置需要捕获的变更类型
+   - 使用`CaptureChangeTypes(params EntityState[])`方法（流畅API）为实体类型配置需要捕获的变更类型
    - 支持的变更类型：Added、Modified、Deleted
    - 可以添加多个变更类型
+
+4. **实体类型特定配置**：
+   - 使用`AddCapturedChangeTypes<TEntity>(params EntityState[])`方法为特定实体类型配置需要捕获的变更类型
+   - 使用流畅API：`options.AddIsolatedEntity<Product>().CaptureChangeTypes(EntityState.Added, EntityState.Modified)`
+   - 实体类型特定配置会覆盖全局配置
+   - 例如：可以为Product实体只捕获Added和Modified操作，为Order实体只捕获Deleted操作
+   - 支持为不同的实体类型配置不同的变更类型
+
+5. **流畅API**：
+   - 提供链式调用方式配置实体类型和变更类型
+   - 语法：`options.AddIsolatedEntity<TEntity>().CaptureChangeTypes(params EntityState[])`
+   - 推荐使用，使配置代码更简洁易读
 
 ## 核心组件
 
