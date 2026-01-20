@@ -3,6 +3,7 @@ using EfCore.FaultIsolation.Interceptors;
 using EfCore.FaultIsolation.Services;
 using EfCore.FaultIsolation.Stores;
 using Hangfire;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -25,6 +26,9 @@ public static class EfCoreFaultIsolationServiceCollectionExtensions
     {
         var options = new FaultIsolationOptions();
         configureOptions?.Invoke(options);
+
+        // 注册选项配置
+        services.AddSingleton(options);
 
         // 注册存储服务
         services.AddSingleton<IFaultIsolationStore<TDbContext>>(_ =>
@@ -117,6 +121,11 @@ public class FaultIsolationOptions
     internal System.Collections.Generic.HashSet<Type> IsolatedEntities { get; } = [];
 
     /// <summary>
+    /// 需要捕获的变更类型集合
+    /// </summary>
+    internal System.Collections.Generic.HashSet<EntityState> CapturedChangeTypes { get; } = [];
+
+    /// <summary>
     /// 添加需要故障隔离的实体类型
     /// </summary>
     /// <typeparam name="TEntity">实体类型</typeparam>
@@ -133,5 +142,37 @@ public class FaultIsolationOptions
     public bool IsEntityIsolated<TEntity>() where TEntity : class
     {
         return IsolatedEntities.Count == 0 || IsolatedEntities.Contains(typeof(TEntity));
+    }
+
+    /// <summary>
+    /// 检查指定类型是否需要故障隔离
+    /// </summary>
+    /// <param name="entityType">实体类型</param>
+    /// <returns>是否需要故障隔离</returns>
+    public bool IsEntityIsolated(Type entityType)
+    {
+        return IsolatedEntities.Count == 0 || IsolatedEntities.Contains(entityType);
+    }
+
+    /// <summary>
+    /// 添加需要捕获的变更类型
+    /// </summary>
+    /// <param name="changeTypes">变更类型数组</param>
+    public void AddCapturedChangeTypes(params EntityState[] changeTypes)
+    {
+        foreach (var changeType in changeTypes)
+        {
+            CapturedChangeTypes.Add(changeType);
+        }
+    }
+
+    /// <summary>
+    /// 检查指定的变更类型是否需要捕获
+    /// </summary>
+    /// <param name="changeType">变更类型</param>
+    /// <returns>是否需要捕获</returns>
+    public bool IsChangeTypeCaptured(EntityState changeType)
+    {
+        return CapturedChangeTypes.Count == 0 || CapturedChangeTypes.Contains(changeType);
     }
 }

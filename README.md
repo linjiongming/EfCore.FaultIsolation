@@ -29,17 +29,7 @@ builder.Services.AddFaultIsolation<AppDbContext>();
 
 ### 3. 配置DbContext
 
-在DbContext的OnConfiguring方法中添加拦截器，或在服务配置时添加：
-
-```csharp
-builder.Services.AddDbContext<AppDbContext>(options =>
-{
-    options.UseSqlServer("connection-string");
-    options.AddInterceptors(new FaultIsolationInterceptor());
-});
-```
-
-或者通过服务提供程序获取拦截器：
+通过服务提供程序获取拦截器（推荐方式）：
 
 ```csharp
 builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
@@ -49,6 +39,18 @@ builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
     options.AddInterceptors(interceptor);
 });
 ```
+
+或者使用库提供的扩展方法：
+
+```csharp
+builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
+{
+    options.UseSqlServer("connection-string");
+    options.UseEfCoreFaultIsolation(serviceProvider);
+});
+```
+
+**注意**：由于FaultIsolationInterceptor现在依赖于多个服务（IServiceProvider、ILogger、FaultIsolationOptions），不建议直接使用`new FaultIsolationInterceptor()`的方式创建实例，而应该通过依赖注入获取。
 
 ### 4. 使用服务
 
@@ -122,15 +124,42 @@ faultIsolationService.ConfigureRecurringRetry<Product>();
 ```csharp
 builder.Services.AddFaultIsolation<AppDbContext>(options =>
 {
+    // 重试配置
     options.InitialRetryDelay = TimeSpan.FromSeconds(5);
     options.MaxRetries = 3;
     options.HealthCheckIntervalSeconds = 30;
+    
+    // 数据存储配置
     // 自定义LiteDB连接字符串
     options.LiteDbConnectionString = "Filename=custom_fault.db;Connection=shared";
     // 自定义Hangfire连接字符串
     options.HangfireConnectionString = "Filename=custom_hangfire.db;Connection=shared";
+    
+    // 实体类型隔离配置
+    // 只捕获特定实体类型的故障（不配置则捕获所有实体类型）
+    options.AddIsolatedEntity<Product>();
+    options.AddIsolatedEntity<Order>();
+    
+    // 变更类型捕获配置
+    // 只捕获特定变更类型（不配置则捕获所有变更类型）
+    options.AddCapturedChangeTypes(EntityState.Added, EntityState.Modified);
 });
 ```
+
+### 配置说明
+
+1. **默认行为**：
+   - 如果不配置`AddIsolatedEntity`，则捕获所有实体类型的故障
+   - 如果不配置`AddCapturedChangeTypes`，则捕获所有变更类型（Added、Modified、Deleted）
+
+2. **实体类型隔离**：
+   - 使用`AddIsolatedEntity<TEntity>()`方法添加需要隔离的实体类型
+   - 可以添加多个实体类型
+
+3. **变更类型捕获**：
+   - 使用`AddCapturedChangeTypes(params EntityState[])`方法添加需要捕获的变更类型
+   - 支持的变更类型：Added、Modified、Deleted
+   - 可以添加多个变更类型
 
 ## 核心组件
 
