@@ -1,7 +1,7 @@
 # EfCore.FaultIsolation NuGet包发布脚本
 
 # 设置包版本
-$version = "1.0.0.4"
+$version = "1.0.0.5"
 $packageId = "EfCore.FaultIsolation"
 
 # 设置NuGet源和API密钥变量
